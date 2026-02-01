@@ -1,0 +1,30 @@
+# Environment
+.env
+
+# Binaries
+bin/
+*.exe
+
+# Go
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+
+# Logs
+*.log
+
+# Test coverage
+coverage.out
+coverage.html
