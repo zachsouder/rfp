@@ -1,0 +1,56 @@
+{{define "title"}}Login - RFP Intelligence{{end}}
+
+{{define "content"}}
+<div class="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div>
+            <h1 class="text-center text-3xl font-bold text-primary-600">RFP Intelligence</h1>
+            <h2 class="mt-6 text-center text-2xl font-semibold text-slate-900">
+                Sign in to your account
+            </h2>
+        </div>
+
+        {{if .Flash}}
+        <div class="rounded-md {{if eq .Flash.Type "error"}}bg-red-50 border-red-200{{else if eq .Flash.Type "success"}}bg-green-50 border-green-200{{else}}bg-blue-50 border-blue-200{{end}} border p-4">
+            <p class="text-sm {{if eq .Flash.Type "error"}}text-red-700{{else if eq .Flash.Type "success"}}text-green-700{{else}}text-blue-700{{end}}">
+                {{.Flash.Message}}
+            </p>
+        </div>
+        {{end}}
+
+        <form class="mt-8 space-y-6" action="/login" method="POST">
+            <div class="rounded-md shadow-sm space-y-4">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-slate-700">Email address</label>
+                    <input id="email" name="email" type="email" autocomplete="email" required
+                           class="mt-1 appearance-none relative block w-full px-3 py-2 border border-slate-300 rounded-md placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                           placeholder="you@example.com"
+                           value="{{if .Data}}{{.Data.Email}}{{end}}">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-slate-700">Password</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" required
+                           class="mt-1 appearance-none relative block w-full px-3 py-2 border border-slate-300 rounded-md placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                           placeholder="Password">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <input id="remember" name="remember" type="checkbox"
+                           class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-slate-300 rounded">
+                    <label for="remember" class="ml-2 block text-sm text-slate-700">
+                        Remember me
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <button type="submit" class="btn-primary w-full flex justify-center">
+                    Sign in
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

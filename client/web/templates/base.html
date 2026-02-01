@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{block "title" .}}RFP Intelligence{{end}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#e8eef5',
+                            100: '#c5d4e5',
+                            200: '#9fb8d3',
+                            300: '#789bc1',
+                            400: '#5a85b3',
+                            500: '#3d6fa5',
+                            600: '#1e3a5f',
+                            700: '#183049',
+                            800: '#122536',
+                            900: '#0c1a24',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer components {
+            .btn-primary {
+                @apply bg-primary-600 text-white px-4 py-2 rounded-md font-medium hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+            }
+            .btn-secondary {
+                @apply bg-slate-100 text-slate-700 px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2;
+            }
+            .btn-danger {
+                @apply bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+            }
+            .card {
+                @apply bg-white rounded-lg shadow-sm border border-slate-200 p-6;
+            }
+            .input {
+                @apply block w-full rounded-md border-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm;
+            }
+            .badge {
+                @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+            }
+            .badge-new { @apply bg-blue-100 text-blue-800; }
+            .badge-reviewing { @apply bg-yellow-100 text-yellow-800; }
+            .badge-qualified { @apply bg-purple-100 text-purple-800; }
+            .badge-pursuing { @apply bg-green-100 text-green-800; }
+            .badge-submitted { @apply bg-teal-100 text-teal-800; }
+            .badge-won { @apply bg-emerald-100 text-emerald-800; }
+            .badge-lost { @apply bg-red-100 text-red-800; }
+            .badge-passed { @apply bg-slate-100 text-slate-800; }
+        }
+    </style>
+    {{block "head" .}}{{end}}
+</head>
+<body class="bg-slate-50 min-h-screen">
+    {{if .User}}
+    <nav class="bg-primary-600 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="flex items-center">
+                        <span class="text-white text-xl font-bold">RFP Intel</span>
+                    </a>
+                    <div class="hidden md:flex ml-10 space-x-4">
+                        <a href="/" class="text-primary-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium {{if eq .ActiveNav "dashboard"}}bg-primary-700 text-white{{end}}">
+                            Dashboard
+                        </a>
+                        <a href="/rfps" class="text-primary-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium {{if eq .ActiveNav "rfps"}}bg-primary-700 text-white{{end}}">
+                            RFPs
+                        </a>
+                        <a href="/pipeline" class="text-primary-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium {{if eq .ActiveNav "pipeline"}}bg-primary-700 text-white{{end}}">
+                            Pipeline
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    {{if .User.IsAdmin}}
+                    <div class="relative group">
+                        <button class="text-primary-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                            Admin
+                        </button>
+                        <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block z-10">
+                            <a href="/admin/users" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">Users</a>
+                            <a href="/admin/scoring" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">Scoring Rules</a>
+                        </div>
+                    </div>
+                    {{end}}
+                    <div class="relative group">
+                        <button class="flex items-center text-primary-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                            <span>{{.User.FirstName}}</span>
+                            <svg class="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block z-10">
+                            <a href="/settings" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">Settings</a>
+                            <a href="/logout" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {{end}}
+
+    <main class="{{if .User}}py-6{{end}}">
+        {{block "content" .}}{{end}}
+    </main>
+
+    {{if .User}}
+    <footer class="bg-white border-t border-slate-200 mt-auto">
+        <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+            <p class="text-center text-sm text-slate-500">
+                RFP Intelligence Platform
+            </p>
+        </div>
+    </footer>
+    {{end}}
+
+    {{block "scripts" .}}{{end}}
+</body>
+</html>

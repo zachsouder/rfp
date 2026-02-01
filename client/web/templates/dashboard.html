@@ -1,0 +1,76 @@
+{{define "title"}}Dashboard - RFP Intelligence{{end}}
+
+{{define "content"}}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p class="mt-1 text-sm text-slate-500">Welcome back, {{.User.FirstName}}</p>
+    </div>
+
+    <!-- Stats cards -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div class="card">
+            <dt class="text-sm font-medium text-slate-500 truncate">New This Week</dt>
+            <dd class="mt-1 text-3xl font-semibold text-primary-600">{{if .Data}}{{.Data.NewThisWeek}}{{else}}0{{end}}</dd>
+        </div>
+        <div class="card">
+            <dt class="text-sm font-medium text-slate-500 truncate">In Pipeline</dt>
+            <dd class="mt-1 text-3xl font-semibold text-primary-600">{{if .Data}}{{.Data.InPipeline}}{{else}}0{{end}}</dd>
+        </div>
+        <div class="card">
+            <dt class="text-sm font-medium text-slate-500 truncate">Due This Week</dt>
+            <dd class="mt-1 text-3xl font-semibold text-amber-600">{{if .Data}}{{.Data.DueThisWeek}}{{else}}0{{end}}</dd>
+        </div>
+        <div class="card">
+            <dt class="text-sm font-medium text-slate-500 truncate">Total Active</dt>
+            <dd class="mt-1 text-3xl font-semibold text-slate-900">{{if .Data}}{{.Data.TotalActive}}{{else}}0{{end}}</dd>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Needs Review -->
+        <div class="card">
+            <h2 class="text-lg font-semibold text-slate-900 mb-4">Needs Review</h2>
+            {{if and .Data .Data.NeedsReview}}
+            <ul class="divide-y divide-slate-200">
+                {{range .Data.NeedsReview}}
+                <li class="py-3">
+                    <a href="/rfps/{{.ID}}" class="flex justify-between items-center hover:bg-slate-50 -mx-4 px-4 py-2 rounded">
+                        <div>
+                            <p class="text-sm font-medium text-slate-900">{{.Title}}</p>
+                            <p class="text-sm text-slate-500">{{.Agency}} &middot; {{.State}}</p>
+                        </div>
+                        <span class="badge badge-new">New</span>
+                    </a>
+                </li>
+                {{end}}
+            </ul>
+            {{else}}
+            <p class="text-sm text-slate-500">No RFPs need review</p>
+            {{end}}
+        </div>
+
+        <!-- Upcoming Deadlines -->
+        <div class="card">
+            <h2 class="text-lg font-semibold text-slate-900 mb-4">Upcoming Deadlines</h2>
+            {{if and .Data .Data.UpcomingDeadlines}}
+            <ul class="divide-y divide-slate-200">
+                {{range .Data.UpcomingDeadlines}}
+                <li class="py-3">
+                    <a href="/rfps/{{.ID}}" class="flex justify-between items-center hover:bg-slate-50 -mx-4 px-4 py-2 rounded">
+                        <div>
+                            <p class="text-sm font-medium text-slate-900">{{.Title}}</p>
+                            <p class="text-sm text-slate-500">{{.Agency}}</p>
+                        </div>
+                        <span class="text-sm font-medium {{if .Urgent}}text-red-600{{else}}text-amber-600{{end}}">{{.DueDate}}</span>
+                    </a>
+                </li>
+                {{end}}
+            </ul>
+            {{else}}
+            <p class="text-sm text-slate-500">No upcoming deadlines</p>
+            {{end}}
+        </div>
+    </div>
+</div>
+{{end}}
