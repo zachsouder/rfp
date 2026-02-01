@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/zsouder/rfp/client/internal/middleware"
-	"github.com/zsouder/rfp/client/internal/templates"
+	"github.com/zachsouder/rfp/client/internal/middleware"
+	"github.com/zachsouder/rfp/client/internal/templates"
 )
 
 // LoginPage renders the login page.

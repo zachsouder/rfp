@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zsouder/rfp/shared/models"
+	"github.com/zachsouder/rfp/shared/models"
 )
 
 func TestHtmlToText(t *testing.T) {

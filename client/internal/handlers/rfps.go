@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/zsouder/rfp/client/internal/middleware"
-	"github.com/zsouder/rfp/client/internal/templates"
+	"github.com/zachsouder/rfp/client/internal/middleware"
+	"github.com/zachsouder/rfp/client/internal/templates"
 )
 
 const (

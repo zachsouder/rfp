@@ -1,11 +1,11 @@
-module github.com/zsouder/rfp/client
+module github.com/zachsouder/rfp/client
 
 go 1.24.0
 
 require (
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/jackc/pgx/v5 v5.8.0
-	github.com/zsouder/rfp/shared v0.0.0
+	github.com/zachsouder/rfp/shared v0.0.0
 	golang.org/x/crypto v0.33.0
 )
 
@@ -18,4 +18,4 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 )
 
-replace github.com/zsouder/rfp/shared => ../shared
+replace github.com/zachsouder/rfp/shared => ../shared

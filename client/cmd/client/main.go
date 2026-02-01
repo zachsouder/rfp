@@ -13,13 +13,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/zsouder/rfp/client/internal/auth"
-	"github.com/zsouder/rfp/client/internal/handlers"
-	"github.com/zsouder/rfp/client/internal/middleware"
-	"github.com/zsouder/rfp/client/internal/templates"
-	"github.com/zsouder/rfp/client/web"
-	"github.com/zsouder/rfp/shared/config"
-	"github.com/zsouder/rfp/shared/db"
+	"github.com/zachsouder/rfp/client/internal/auth"
+	"github.com/zachsouder/rfp/client/internal/handlers"
+	"github.com/zachsouder/rfp/client/internal/middleware"
+	"github.com/zachsouder/rfp/client/internal/templates"
+	"github.com/zachsouder/rfp/client/web"
+	"github.com/zachsouder/rfp/shared/config"
+	"github.com/zachsouder/rfp/shared/db"
 )
 
 func main() {

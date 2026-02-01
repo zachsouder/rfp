@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zsouder/rfp/shared/models"
+	"github.com/zachsouder/rfp/shared/models"
 )
 
 const (

@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/zsouder/rfp/client/internal/middleware"
-	"github.com/zsouder/rfp/client/internal/templates"
+	"github.com/zachsouder/rfp/client/internal/middleware"
+	"github.com/zachsouder/rfp/client/internal/templates"
 )
 
 // DashboardData contains data for the dashboard template.

@@ -1,4 +1,4 @@
-module github.com/zsouder/rfp/shared
+module github.com/zachsouder/rfp/shared
 
 go 1.24.0
 

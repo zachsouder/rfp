@@ -1,4 +1,4 @@
-module github.com/zsouder/rfp/cli
+module github.com/zachsouder/rfp/cli
 
 go 1.22
 

@@ -2,9 +2,9 @@
 package handlers
 
 import (
-	"github.com/zsouder/rfp/client/internal/auth"
-	"github.com/zsouder/rfp/client/internal/templates"
-	"github.com/zsouder/rfp/shared/db"
+	"github.com/zachsouder/rfp/client/internal/auth"
+	"github.com/zachsouder/rfp/client/internal/templates"
+	"github.com/zachsouder/rfp/shared/db"
 )
 
 // Handlers provides HTTP handlers for the client app.

@@ -12,11 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zsouder/rfp/discovery/internal/research"
-	"github.com/zsouder/rfp/discovery/internal/search"
-	"github.com/zsouder/rfp/discovery/internal/validation"
-	"github.com/zsouder/rfp/shared/config"
-	"github.com/zsouder/rfp/shared/db"
+	"github.com/zachsouder/rfp/discovery/internal/research"
+	"github.com/zachsouder/rfp/discovery/internal/search"
+	"github.com/zachsouder/rfp/discovery/internal/validation"
+	"github.com/zachsouder/rfp/shared/config"
+	"github.com/zachsouder/rfp/shared/db"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/zsouder/rfp/client/internal/auth"
+	"github.com/zachsouder/rfp/client/internal/auth"
 )
 
 // contextKey is a custom type for context keys to avoid collisions.

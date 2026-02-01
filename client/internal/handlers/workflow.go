@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/zsouder/rfp/client/internal/middleware"
-	"github.com/zsouder/rfp/client/internal/workflow"
+	"github.com/zachsouder/rfp/client/internal/middleware"
+	"github.com/zachsouder/rfp/client/internal/workflow"
 )
 
 // UpdateStage handles stage change requests.
