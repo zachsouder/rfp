@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/zachsouder/rfp/client/internal/middleware"
+	"github.com/zachsouder/rfp/client/internal/scoring"
 	"github.com/zachsouder/rfp/client/internal/workflow"
 )
 
@@ -134,5 +135,29 @@ func (h *Handlers) AddNote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("note added", "rfp_id", id, "user_id", user.ID)
+	http.Redirect(w, r, "/rfps/"+idStr, http.StatusSeeOther)
+}
+
+// RefreshScore recalculates the auto-score for an RFP.
+func (h *Handlers) RefreshScore(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	user := middleware.GetUser(ctx)
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid RFP ID", http.StatusBadRequest)
+		return
+	}
+
+	scoringSvc := scoring.NewService(h.db.Pool)
+	result, err := scoringSvc.ApplyScore(ctx, id)
+	if err != nil {
+		slog.Error("failed to refresh score", "error", err, "rfp_id", id)
+		http.Error(w, "Failed to refresh score", http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("score refreshed", "rfp_id", id, "score", result.Score, "user_id", user.ID)
 	http.Redirect(w, r, "/rfps/"+idStr, http.StatusSeeOther)
 }

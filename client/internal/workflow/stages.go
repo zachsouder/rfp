@@ -4,10 +4,12 @@ package workflow
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/zachsouder/rfp/client/internal/scoring"
 )
 
 // Valid pipeline stages.
@@ -80,7 +82,7 @@ func (s *Service) UpdateStage(ctx context.Context, rfpID int, stage string, user
 		return fmt.Errorf("failed to update stage: %w", err)
 	}
 
-	// If no rows updated, create a new tracking record
+	// If no rows updated, create a new tracking record and apply auto-scoring
 	if result.RowsAffected() == 0 {
 		_, err = s.db.Exec(ctx, `
 			INSERT INTO client.rfp_tracking
@@ -89,6 +91,13 @@ func (s *Service) UpdateStage(ctx context.Context, rfpID int, stage string, user
 		`, rfpID, stage, now, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create tracking record: %w", err)
+		}
+
+		// Apply auto-scoring to newly tracked RFP
+		scoringSvc := scoring.NewService(s.db)
+		if _, err := scoringSvc.ApplyScore(ctx, rfpID); err != nil {
+			// Log but don't fail - scoring is non-critical
+			slog.Warn("failed to apply auto-score", "error", err, "rfp_id", rfpID)
 		}
 	}
 

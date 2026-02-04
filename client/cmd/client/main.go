@@ -101,6 +101,7 @@ func main() {
 		r.Get("/rfps/{id}", h.RFPDetail)
 		r.Post("/rfps/{id}/stage", h.UpdateStage)
 		r.Post("/rfps/{id}/score", h.UpdateScore)
+		r.Post("/rfps/{id}/refresh-score", h.RefreshScore)
 		r.Post("/rfps/{id}/assign", notImplemented("assign RFP"))
 		r.Post("/rfps/{id}/notes", h.AddNote)
 		r.Post("/rfps/{id}/attachments", notImplemented("upload attachment"))
