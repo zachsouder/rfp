@@ -211,3 +211,74 @@ func (s *Service) CleanExpiredSessions(ctx context.Context) error {
 	}
 	return nil
 }
+
+// CreateUser creates a new user with the given email and temporary password.
+// Returns the created user and the temporary password.
+func (s *Service) CreateUser(ctx context.Context, email, firstName, lastName, role string) (*User, string, error) {
+	// Generate a temporary password
+	tempPassword, err := GenerateSessionToken()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate temp password: %w", err)
+	}
+	// Use first 12 chars for readability
+	tempPassword = tempPassword[:12]
+
+	passwordHash, err := HashPassword(tempPassword)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var userID int
+	err = s.db.QueryRow(ctx, `
+		INSERT INTO client.users (email, password_hash, first_name, last_name, role)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`, email, passwordHash, firstName, lastName, role).Scan(&userID)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create user: %w", err)
+	}
+
+	user, err := s.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return user, tempPassword, nil
+}
+
+// DeactivateUser removes all sessions for a user, effectively logging them out.
+// In a more complete system, this would set an is_active flag.
+func (s *Service) DeactivateUser(ctx context.Context, userID int) error {
+	_, err := s.db.Exec(ctx, `DELETE FROM client.sessions WHERE user_id = $1`, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user sessions: %w", err)
+	}
+	return nil
+}
+
+// ListUsers returns all users.
+func (s *Service) ListUsers(ctx context.Context) ([]*User, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, email, password_hash, first_name, last_name, role, last_active_at, created_at
+		FROM client.users
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*User
+	for rows.Next() {
+		user := &User{}
+		if err := rows.Scan(
+			&user.ID, &user.Email, &user.PasswordHash,
+			&user.FirstName, &user.LastName, &user.Role,
+			&user.LastActiveAt, &user.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, user)
+	}
+	return users, nil
+}

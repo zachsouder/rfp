@@ -1,0 +1,187 @@
+{{define "title"}}Scoring Rules - Admin{{end}}
+
+{{define "content"}}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">Scoring Configuration</h1>
+        <form action="/admin/scoring/refresh" method="POST" class="inline">
+            <button type="submit" class="btn-secondary">
+                Refresh All Scores
+            </button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Rules List -->
+        <div class="lg:col-span-2 space-y-4">
+            <div class="card">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4">Scoring Rules</h2>
+                <p class="text-sm text-slate-600 mb-4">
+                    Configure how RFPs are automatically scored. Weights should sum to 100%.
+                    Rules with higher weights have more influence on the final score.
+                </p>
+
+                {{range .Data.Rules}}
+                <div class="border border-slate-200 rounded-lg p-4 mb-4 {{if not .Enabled}}bg-slate-50 opacity-75{{end}}">
+                    <form action="/admin/scoring" method="POST">
+                        <input type="hidden" name="rule_id" value="{{.ID}}">
+
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h3 class="font-medium text-slate-900">{{.Name}}</h3>
+                                <p class="text-sm text-slate-500">{{.Description}}</p>
+                                <span class="inline-block mt-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded">{{.RuleType}}</span>
+                            </div>
+                            <label class="flex items-center">
+                                <input type="hidden" name="enabled" value="false">
+                                <input type="checkbox" name="enabled" value="true" {{if .Enabled}}checked{{end}}
+                                       class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-slate-300 rounded">
+                                <span class="ml-2 text-sm text-slate-600">Enabled</span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Weight (%)</label>
+                                <input type="number" name="weight" value="{{.WeightPercent}}" min="0" max="100" step="5"
+                                       class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-slate-700">Configuration (JSON)</label>
+                            <textarea name="config" rows="3"
+                                      class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm font-mono text-xs">{{.ConfigJSON}}</textarea>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button type="submit" class="btn-primary text-sm">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+                {{end}}
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Score Distribution -->
+            <div class="card">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4">Score Distribution</h2>
+                <div class="space-y-2">
+                    {{range .Data.Distribution}}
+                    <div class="flex items-center">
+                        <span class="w-8 text-sm text-slate-600">{{.Label}}</span>
+                        <div class="flex-1 mx-2 bg-slate-200 rounded-full h-4 overflow-hidden">
+                            <div class="h-full rounded-full {{if ge .Score 4.0}}bg-green-500{{else if ge .Score 3.0}}bg-yellow-500{{else}}bg-red-500{{end}}"
+                                 style="width: {{if .Count}}{{.Count}}0%{{else}}0{{end}}; max-width: 100%;"></div>
+                        </div>
+                        <span class="w-8 text-sm text-slate-600 text-right">{{.Count}}</span>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+
+            <!-- Test Scoring -->
+            <div class="card">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4">Test Scoring</h2>
+                <p class="text-sm text-slate-600 mb-3">Enter an RFP ID to see how it would be scored with current rules.</p>
+
+                <div class="flex gap-2 mb-4">
+                    <input type="number" id="test-rfp-id" placeholder="RFP ID"
+                           class="block w-full rounded-md border-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                    <button onclick="testScoring()" class="btn-secondary whitespace-nowrap">Test</button>
+                </div>
+
+                <div id="test-results" class="hidden">
+                    <div class="border-t border-slate-200 pt-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-medium text-slate-700">Final Score:</span>
+                            <span id="test-score" class="text-lg font-bold text-primary-600"></span>
+                        </div>
+                        <div id="test-breakdown" class="space-y-2 text-sm">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help -->
+            <div class="card">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4">Rule Types</h2>
+                <dl class="space-y-3 text-sm">
+                    <div>
+                        <dt class="font-medium text-slate-700">venue_match</dt>
+                        <dd class="text-slate-500">Match venue type against positive/negative keywords</dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-slate-700">scope_match</dt>
+                        <dd class="text-slate-500">Match scope keywords against preferred/excluded terms</dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-slate-700">geography</dt>
+                        <dd class="text-slate-500">Preferred and excluded states</dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-slate-700">term_length</dt>
+                        <dd class="text-slate-500">Minimum and ideal contract term months</dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-slate-700">time_to_due</dt>
+                        <dd class="text-slate-500">Minimum and ideal days until deadline</dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-slate-700">value</dt>
+                        <dd class="text-slate-500">Minimum and ideal estimated contract value</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function testScoring() {
+    const rfpId = document.getElementById('test-rfp-id').value;
+    if (!rfpId) return;
+
+    try {
+        const response = await fetch('/admin/scoring/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'rfp_id=' + encodeURIComponent(rfpId)
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            alert('Error: ' + text);
+            return;
+        }
+
+        const result = await response.json();
+
+        document.getElementById('test-results').classList.remove('hidden');
+        document.getElementById('test-score').textContent = result.score.toFixed(1);
+
+        const breakdown = document.getElementById('test-breakdown');
+        breakdown.innerHTML = '';
+
+        for (const reason of result.reasons) {
+            const div = document.createElement('div');
+            div.className = 'flex justify-between text-slate-600';
+            div.innerHTML = `
+                <span>${reason.rule_name}</span>
+                <span class="font-mono">${reason.score.toFixed(1)} x ${(reason.weight * 100).toFixed(0)}%</span>
+            `;
+            breakdown.appendChild(div);
+
+            const explain = document.createElement('div');
+            explain.className = 'text-xs text-slate-400 mb-1';
+            explain.textContent = reason.explanation;
+            breakdown.appendChild(explain);
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+</script>
+{{end}}

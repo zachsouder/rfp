@@ -390,6 +390,62 @@ func (h *Handlers) RFPDetail(w http.ResponseWriter, r *http.Request) {
 		rfp.Priority = "normal"
 	}
 
+	// Fetch notes for this RFP
+	notesRows, err := h.db.Query(ctx, `
+		SELECT n.id, COALESCE(u.first_name || ' ' || u.last_name, u.email) as author_name,
+		       n.content, n.created_at
+		FROM client.notes n
+		JOIN client.rfp_tracking t ON n.rfp_tracking_id = t.id
+		JOIN client.users u ON n.author_id = u.id
+		WHERE t.discovery_rfp_id = $1
+		ORDER BY n.created_at DESC
+	`, id)
+	if err != nil {
+		slog.Error("failed to fetch notes", "error", err, "rfp_id", id)
+	} else {
+		defer notesRows.Close()
+		for notesRows.Next() {
+			var note Note
+			var createdAt time.Time
+			if err := notesRows.Scan(&note.ID, &note.AuthorName, &note.Content, &createdAt); err != nil {
+				slog.Error("failed to scan note", "error", err)
+				continue
+			}
+			note.CreatedAt = createdAt.Format("Jan 2, 2006 3:04 PM")
+			rfp.Notes = append(rfp.Notes, note)
+		}
+	}
+
+	// Fetch attachments for this RFP
+	attachRows, err := h.db.Query(ctx, `
+		SELECT a.id, a.filename, a.file_size, a.content_type,
+		       COALESCE(u.first_name || ' ' || u.last_name, u.email) as uploaded_by,
+		       a.created_at
+		FROM client.attachments a
+		JOIN client.rfp_tracking t ON a.rfp_tracking_id = t.id
+		JOIN client.users u ON a.uploaded_by = u.id
+		WHERE t.discovery_rfp_id = $1
+		ORDER BY a.created_at DESC
+	`, id)
+	if err != nil {
+		slog.Error("failed to fetch attachments", "error", err, "rfp_id", id)
+	} else {
+		defer attachRows.Close()
+		for attachRows.Next() {
+			var att Attachment
+			var fileSize int
+			var createdAt time.Time
+			if err := attachRows.Scan(&att.ID, &att.Filename, &fileSize, &att.ContentType, &att.UploadedBy, &createdAt); err != nil {
+				slog.Error("failed to scan attachment", "error", err)
+				continue
+			}
+			att.FileSize = formatFileSize(fileSize)
+			att.CreatedAt = createdAt.Format("Jan 2, 2006")
+			att.DownloadURL = fmt.Sprintf("/rfps/%d/attachments/%d", id, att.ID)
+			rfp.Attachments = append(rfp.Attachments, att)
+		}
+	}
+
 	// Render template
 	pageData := templates.PageData{
 		Title:     rfp.Title,
@@ -408,6 +464,25 @@ func (h *Handlers) RFPDetail(w http.ResponseWriter, r *http.Request) {
 		slog.Error("failed to render RFP detail template", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
+}
+
+// Note represents a note on an RFP for display.
+type Note struct {
+	ID         int
+	AuthorName string
+	Content    string
+	CreatedAt  string
+}
+
+// Attachment represents an uploaded file on an RFP for display.
+type Attachment struct {
+	ID           int
+	Filename     string
+	FileSize     string
+	ContentType  string
+	UploadedBy   string
+	CreatedAt    string
+	DownloadURL  string
 }
 
 // RFPDetailData contains data for the RFP detail template.
@@ -437,4 +512,26 @@ type RFPDetailData struct {
 	StageDisplay string
 	Score        float64
 	Priority     string
+
+	// Notes
+	Notes []Note
+
+	// Attachments
+	Attachments []Attachment
+}
+
+// formatFileSize formats a file size in bytes to a human-readable string.
+func formatFileSize(bytes int) string {
+	const (
+		KB = 1024
+		MB = KB * 1024
+	)
+	switch {
+	case bytes >= MB:
+		return fmt.Sprintf("%.1f MB", float64(bytes)/MB)
+	case bytes >= KB:
+		return fmt.Sprintf("%.1f KB", float64(bytes)/KB)
+	default:
+		return fmt.Sprintf("%d B", bytes)
+	}
 }

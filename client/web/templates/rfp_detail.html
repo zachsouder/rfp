@@ -120,7 +120,50 @@
                         <button type="submit" class="btn-primary">Add Note</button>
                     </div>
                 </form>
-                <!-- Notes will be listed here -->
+                {{if .Data.Notes}}
+                <div class="mt-6 space-y-4">
+                    {{range .Data.Notes}}
+                    <div class="border-t border-slate-200 pt-4">
+                        <div class="flex justify-between items-start">
+                            <span class="text-sm font-medium text-slate-900">{{.AuthorName}}</span>
+                            <span class="text-xs text-slate-500">{{.CreatedAt}}</span>
+                        </div>
+                        <p class="mt-1 text-sm text-slate-700 whitespace-pre-wrap">{{.Content}}</p>
+                    </div>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+
+            <!-- Attachments section -->
+            <div class="card">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4">Attachments</h2>
+                <form action="/rfps/{{.Data.ID}}/attachments" method="POST" enctype="multipart/form-data">
+                    <div class="flex items-center gap-4">
+                        <input type="file" name="file" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100">
+                        <button type="submit" class="btn-primary whitespace-nowrap">Upload</button>
+                    </div>
+                    <p class="mt-1 text-xs text-slate-500">PDF, Word, Excel, images, or text files. Max 10 MB.</p>
+                </form>
+                {{if .Data.Attachments}}
+                <div class="mt-4 divide-y divide-slate-200">
+                    {{range .Data.Attachments}}
+                    <div class="py-3 flex items-center justify-between">
+                        <div class="min-w-0 flex-1">
+                            <a href="{{.DownloadURL}}" class="text-sm font-medium text-primary-600 hover:text-primary-800 truncate block">
+                                {{.Filename}}
+                            </a>
+                            <p class="text-xs text-slate-500">{{.FileSize}} - {{.UploadedBy}} - {{.CreatedAt}}</p>
+                        </div>
+                        <a href="{{.DownloadURL}}" class="ml-4 text-slate-400 hover:text-slate-600" title="Download">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                        </a>
+                    </div>
+                    {{end}}
+                </div>
+                {{end}}
             </div>
         </div>
 

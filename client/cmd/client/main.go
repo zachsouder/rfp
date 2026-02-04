@@ -20,6 +20,7 @@ import (
 	"github.com/zachsouder/rfp/client/web"
 	"github.com/zachsouder/rfp/shared/config"
 	"github.com/zachsouder/rfp/shared/db"
+	"github.com/zachsouder/rfp/shared/r2"
 )
 
 func main() {
@@ -53,8 +54,22 @@ func main() {
 	// Initialize services
 	authService := auth.NewService(database.Pool)
 
+	// Initialize R2 client (optional - may not be configured in dev)
+	var r2Client *r2.Client
+	if cfg.R2AccountID != "" && cfg.R2AccessKeyID != "" && cfg.R2SecretAccessKey != "" {
+		var err error
+		r2Client, err = r2.NewClient(cfg.R2AccountID, cfg.R2AccessKeyID, cfg.R2SecretAccessKey, cfg.R2Bucket)
+		if err != nil {
+			slog.Warn("failed to initialize R2 client, attachments disabled", "error", err)
+		} else {
+			slog.Info("R2 storage initialized", "bucket", cfg.R2Bucket)
+		}
+	} else {
+		slog.Info("R2 not configured, attachments disabled")
+	}
+
 	// Initialize handlers
-	h := handlers.New(database, authService, tmpl)
+	h := handlers.New(database, authService, tmpl, r2Client, cfg.R2AccountID)
 
 	// Create router
 	r := chi.NewRouter()
@@ -104,10 +119,12 @@ func main() {
 		r.Post("/rfps/{id}/refresh-score", h.RefreshScore)
 		r.Post("/rfps/{id}/assign", notImplemented("assign RFP"))
 		r.Post("/rfps/{id}/notes", h.AddNote)
-		r.Post("/rfps/{id}/attachments", notImplemented("upload attachment"))
+		r.Post("/rfps/{id}/attachments", h.UploadAttachment)
+		r.Get("/rfps/{id}/attachments/{attachmentId}", h.DownloadAttachment)
 
 		// Pipeline view
-		r.Get("/pipeline", notImplemented("pipeline view"))
+		r.Get("/pipeline", h.Pipeline)
+		r.Post("/pipeline/move", h.PipelineMoveCard)
 
 		// Settings
 		r.Get("/settings", notImplemented("user settings"))
@@ -118,12 +135,14 @@ func main() {
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(middleware.AdminMiddleware)
 
-			r.Get("/users", notImplemented("user management"))
-			r.Post("/users/invite", notImplemented("invite user"))
-			r.Post("/users/{id}/deactivate", notImplemented("deactivate user"))
+			r.Get("/users", h.UserManagementPage)
+			r.Post("/users/invite", h.InviteUser)
+			r.Post("/users/{id}/deactivate", h.DeactivateUser)
 
-			r.Get("/scoring", notImplemented("scoring rules"))
-			r.Post("/scoring", notImplemented("update scoring rules"))
+			r.Get("/scoring", h.ScoringRulesPage)
+			r.Post("/scoring", h.UpdateScoringRule)
+			r.Post("/scoring/refresh", h.RefreshAllScores)
+			r.Post("/scoring/test", h.TestScoring)
 		})
 	})
 
