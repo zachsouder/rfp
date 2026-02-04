@@ -84,6 +84,10 @@ func main() {
 	r.Get("/login", h.LoginPage)
 	r.Post("/login", h.Login)
 	r.Get("/logout", h.Logout)
+	r.Get("/forgot-password", h.ForgotPasswordPage)
+	r.Post("/forgot-password", h.ForgotPassword)
+	r.Get("/reset-password", h.ResetPasswordPage)
+	r.Post("/reset-password", h.ResetPassword)
 
 	// Protected routes (require authentication)
 	r.Group(func(r chi.Router) {
