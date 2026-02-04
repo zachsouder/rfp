@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/zachsouder/rfp/discovery/internal/research"
+	"github.com/zachsouder/rfp/discovery/internal/scheduler"
 	"github.com/zachsouder/rfp/discovery/internal/search"
 	"github.com/zachsouder/rfp/discovery/internal/validation"
 	"github.com/zachsouder/rfp/shared/config"
@@ -31,10 +32,9 @@ func main() {
 	if cfg.LogLevel == "debug" {
 		logLevel = slog.LevelDebug
 	}
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: logLevel,
-	}))
-	slog.SetDefault(logger)
+	})))
 
 	// Log startup
 	slog.Info("starting discovery service",
@@ -64,23 +64,28 @@ func main() {
 	validator := validation.NewValidator()
 	researchAgent := research.NewAgent(cfg.GeminiAPIKey)
 
-	// Create the discovery service
-	svc := &DiscoveryService{
-		db:            database,
-		searchClient:  searchClient,
-		validator:     validator,
-		researchAgent: researchAgent,
-		logger:        logger,
-	}
+	// Create the scheduler
+	sched := scheduler.New(
+		database,
+		searchClient,
+		validator,
+		researchAgent,
+		scheduler.WithRunOnStart(!*runOnce), // Don't auto-run if doing run-once
+	)
 
 	// Handle run-once mode
 	if *runOnce {
 		slog.Info("running single discovery cycle")
-		if err := svc.RunDiscoveryCycle(context.Background()); err != nil {
+		stats, err := sched.RunOnce(context.Background())
+		if err != nil {
 			slog.Error("discovery cycle failed", "error", err)
 			os.Exit(1)
 		}
-		slog.Info("discovery cycle complete")
+		slog.Info("discovery cycle complete",
+			"duration", stats.Duration.String(),
+			"queries_executed", stats.QueriesExecuted,
+			"results_new", stats.ResultsNew,
+		)
 		return
 	}
 
@@ -117,7 +122,7 @@ func main() {
 
 	// Start scheduler
 	stopScheduler := make(chan struct{})
-	go svc.RunScheduler(stopScheduler)
+	go sched.Run(stopScheduler)
 
 	// Wait for shutdown signal
 	sigChan := make(chan os.Signal, 1)
@@ -141,111 +146,4 @@ func main() {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("healthy"))
-}
-
-// DiscoveryService coordinates the discovery pipeline.
-type DiscoveryService struct {
-	db            *db.DB
-	searchClient  *search.Client
-	validator     *validation.Validator
-	researchAgent *research.Agent
-	logger        *slog.Logger
-}
-
-// RunScheduler runs the discovery cycle on a schedule.
-func (s *DiscoveryService) RunScheduler(stop <-chan struct{}) {
-	// Run immediately on start
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	if err := s.RunDiscoveryCycle(ctx); err != nil {
-		slog.Error("initial discovery cycle failed", "error", err)
-	}
-	cancel()
-
-	// Then run daily
-	ticker := time.NewTicker(24 * time.Hour)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-stop:
-			slog.Info("scheduler stopping")
-			return
-		case <-ticker.C:
-			slog.Info("starting scheduled discovery cycle")
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-			if err := s.RunDiscoveryCycle(ctx); err != nil {
-				slog.Error("scheduled discovery cycle failed", "error", err)
-			}
-			cancel()
-		}
-	}
-}
-
-// RunDiscoveryCycle executes one full discovery cycle:
-// 1. Run configured search queries
-// 2. Validate new URLs
-// 3. Research validated results
-// 4. Check for duplicates
-// 5. Promote new RFPs
-func (s *DiscoveryService) RunDiscoveryCycle(ctx context.Context) error {
-	slog.Info("starting discovery cycle")
-	startTime := time.Now()
-
-	// Get configured queries (or use defaults)
-	queryConfigs := search.DefaultQueryConfigs()
-	slog.Info("executing search queries", "count", len(queryConfigs))
-
-	// Execute searches
-	responses, err := s.searchClient.ExecuteQueries(ctx, queryConfigs)
-	if err != nil {
-		return fmt.Errorf("search execution failed: %w", err)
-	}
-
-	totalResults := 0
-	for _, resp := range responses {
-		totalResults += resp.ResultsCount
-		slog.Debug("search completed",
-			"query", resp.Query,
-			"results", resp.ResultsCount,
-			"duration_ms", resp.DurationMs,
-		)
-	}
-	slog.Info("search phase complete",
-		"queries", len(responses),
-		"total_results", totalResults,
-	)
-
-	// Validate URLs
-	var validatedCount, invalidCount int
-	for _, resp := range responses {
-		for _, result := range resp.Results {
-			validResult := s.validator.Validate(ctx, result.URL)
-			if validResult.Valid {
-				validatedCount++
-			} else {
-				invalidCount++
-			}
-
-			// Rate limit
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(500 * time.Millisecond):
-			}
-		}
-	}
-	slog.Info("validation phase complete",
-		"validated", validatedCount,
-		"invalid", invalidCount,
-	)
-
-	// Log completion
-	duration := time.Since(startTime)
-	slog.Info("discovery cycle complete",
-		"duration", duration.String(),
-		"total_results", totalResults,
-		"validated", validatedCount,
-	)
-
-	return nil
 }
