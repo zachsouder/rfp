@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  discovery:
+    build:
+      context: .
+      dockerfile: Dockerfile.discovery
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+    networks:
+      - rfp-internal
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
+      SESSION_SECRET: ${SESSION_SECRET:-changeme}
+      CLIENT_ADDR: :8080
+    ports:
+      - "${CLIENT_PORT:-8080}:8080"
+    networks:
+      - rfp-internal
+
+networks:
+  rfp-internal:
+    driver: bridge

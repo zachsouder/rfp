@@ -720,9 +720,64 @@ rfp-cli import rfps.json
 ## Future Considerations
 
 ### When Adding Client #2
-- Decide: separate database or schema prefix
-- Domain routing (client1.rfps.com vs client2.rfps.com)
-- Shared discovery, separate client schemas
+
+The current deployment is **single-tenant** - one database, one client app instance. This is intentional for simplicity with one client.
+
+When client #2 arrives, convert to **multi-tenant** with these steps:
+
+#### 1. Add a clients table (new migration)
+```sql
+CREATE TABLE client.clients (
+    id              SERIAL PRIMARY KEY,
+    name            TEXT NOT NULL,
+    slug            TEXT UNIQUE NOT NULL,  -- 'acme', 'bigco' - used in URLs
+    domain          TEXT,                   -- optional custom domain
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+#### 2. Add client_id to tenant tables (new migration)
+```sql
+-- Add column
+ALTER TABLE client.users ADD COLUMN client_id INTEGER REFERENCES client.clients(id);
+ALTER TABLE client.rfp_tracking ADD COLUMN client_id INTEGER REFERENCES client.clients(id);
+ALTER TABLE client.scoring_rules ADD COLUMN client_id INTEGER REFERENCES client.clients(id);
+
+-- Backfill existing data with client #1's ID
+UPDATE client.users SET client_id = 1;
+UPDATE client.rfp_tracking SET client_id = 1;
+UPDATE client.scoring_rules SET client_id = 1;
+
+-- Make NOT NULL after backfill
+ALTER TABLE client.users ALTER COLUMN client_id SET NOT NULL;
+ALTER TABLE client.rfp_tracking ALTER COLUMN client_id SET NOT NULL;
+ALTER TABLE client.scoring_rules ALTER COLUMN client_id SET NOT NULL;
+
+-- Update unique constraint
+ALTER TABLE client.rfp_tracking DROP CONSTRAINT rfp_tracking_discovery_rfp_id_key;
+ALTER TABLE client.rfp_tracking ADD CONSTRAINT rfp_tracking_client_rfp_unique UNIQUE(client_id, discovery_rfp_id);
+```
+
+#### 3. Update queries
+All client-schema queries need `WHERE client_id = ?`. Add a middleware that:
+- Extracts client from subdomain (acme.rfps.example.com) or session
+- Injects client_id into request context
+- All handlers use context client_id in queries
+
+#### 4. Update authentication
+- Users belong to a specific client (can't log into wrong one)
+- Session includes client_id
+- Login page determines client from subdomain
+
+#### 5. Domain routing options
+- **Subdomain**: `acme.rfps.example.com`, `bigco.rfps.example.com` (easiest)
+- **Custom domain**: Client provides their own domain, you add it to clients table
+- **Path prefix**: `rfps.example.com/acme/` (not recommended - messier)
+
+#### 6. No changes needed to discovery
+Discovery service stays exactly the same - it writes to `discovery.*` schema which is shared. All clients see the same RFPs, with their own tracking/scores/notes in `client.*`.
+
+**Estimated effort**: 1-2 days for an experienced Go developer
 
 ### Potential Features (Not v1)
 - Email notifications when high-score RFPs discovered

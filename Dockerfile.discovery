@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1
+
+# Build stage
+FROM golang:1.24-alpine AS builder
+
+# Install git and ca-certificates (needed for fetching dependencies)
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /app
+
+# Copy module files first for better caching
+COPY shared/go.mod shared/go.sum ./shared/
+COPY discovery/go.mod discovery/go.sum ./discovery/
+
+# Create go.work for multi-module workspace
+RUN go work init ./shared ./discovery
+
+# Download dependencies
+RUN cd shared && go mod download
+RUN cd discovery && go mod download
+
+# Copy source code
+COPY shared/ ./shared/
+COPY discovery/ ./discovery/
+
+# Build the binary
+RUN cd discovery && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /discovery ./cmd/discovery
+
+# Runtime stage
+FROM alpine:3.20
+
+# Install ca-certificates for HTTPS and tzdata for timezones
+RUN apk add --no-cache ca-certificates tzdata
+
+# Create non-root user
+RUN adduser -D -g '' appuser
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /discovery .
+
+# Copy migrations (discovery service can run migrations)
+COPY migrations/ ./migrations/
+
+# Use non-root user
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/health || exit 1
+
+# Expose health check port
+EXPOSE 8081
+
+# Run the service
+ENTRYPOINT ["./discovery"]
