@@ -12,7 +12,7 @@ import (
 
 const (
 	defaultMaxSteps = 5
-	defaultModel    = "gemini-2.5-flash"
+	defaultModel    = "gemini-3-flash-preview"
 )
 
 // Status represents the research outcome status.
