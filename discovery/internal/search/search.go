@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	defaultModel  = "gemini-1.5-flash"
+	defaultModel  = "gemini-2.0-flash"
 	baseURL       = "https://generativelanguage.googleapis.com/v1beta"
 	defaultTimeout = 60 * time.Second
 )
