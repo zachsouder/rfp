@@ -654,11 +654,89 @@ rfp-cli discovery source-stats
 - [ ] Email notifications (digest)
 
 ### Phase 5: Polish and Deploy
-- [ ] Production Dockerfile and docker-compose
-- [ ] Coolify deployment config
+- [x] Production Dockerfile and docker-compose
+- [x] Coolify deployment config
 - [ ] Domain setup for first client
 - [ ] Seed data migration from PHP demo
 - [ ] User documentation
+
+---
+
+## Production Deployment (Coolify)
+
+The system is deployed on Coolify with **separate applications** for each service (not docker-compose). This is important because Coolify manages networking and docker-compose creates isolated networks that can't reach Coolify-managed resources.
+
+### Architecture
+
+```
+Coolify Server (Hetzner VPS)
+├── PostgreSQL (Coolify-managed, port 5432 internal, 5433 public)
+├── Client App (Dockerfile.client, port 8080)
+└── Discovery App (Dockerfile.discovery, port 8081)
+```
+
+### Initial Setup
+
+1. **Create PostgreSQL** in Coolify
+   - Resources → New → PostgreSQL
+   - Make publicly accessible on port 5433 (for local dev access)
+   - Note the internal hostname (e.g., `ossgg8w48c8ow0w00gkwow04`)
+
+2. **Run migrations** from local machine:
+   ```bash
+   export DATABASE_URL="postgres://postgres:PASSWORD@SERVER_IP:5433/postgres"
+   # Use the Go migration script or psql
+   ```
+
+3. **Create Client App** in Coolify
+   - Resources → New → Application → Private Repository
+   - Repository: `zachsouder/rfp`
+   - Branch: `main`
+   - Dockerfile Location: `Dockerfile.client`
+   - Base Directory: `/`
+
+   Environment variables:
+   ```
+   DATABASE_URL=postgres://postgres:PASSWORD@INTERNAL_HOSTNAME:5432/postgres
+   SESSION_SECRET=<random string>
+   CLIENT_ADDR=:8080
+   ```
+
+   Network settings:
+   - Ports exposes: `8080`
+
+   Domain:
+   ```
+   http://YOUR_DOMAIN:8080
+   ```
+
+4. **Create Discovery App** in Coolify
+   - Same setup as client but:
+   - Dockerfile Location: `Dockerfile.discovery`
+   - No domain needed (background service)
+
+   Environment variables:
+   ```
+   DATABASE_URL=postgres://postgres:PASSWORD@INTERNAL_HOSTNAME:5432/postgres
+   GEMINI_API_KEY=<your key>
+   ```
+
+### Key Gotchas
+
+- **Use internal hostname** for DATABASE_URL (not public IP) - containers can reach Coolify services by internal hostname
+- **CLIENT_ADDR needs colon**: `:8080` not `8080`
+- **Ports exposes must match**: Set to `8080` for client (the port your app listens on)
+- **Don't use docker-compose** for Coolify deployment - it creates isolated networks
+
+### Local Development
+
+Use `docker-compose.yml` for local dev - it includes PostgreSQL.
+
+For connecting to production DB locally:
+```bash
+export DATABASE_URL="postgres://postgres:PASSWORD@SERVER_IP:5433/postgres"
+cd cli && go run cmd/rfp-cli/main.go discovery stats
+```
 
 ---
 
