@@ -58,9 +58,19 @@ func New(fsys fs.FS) (*Engine, error) {
 			return nil, fmt.Errorf("failed to read template %s: %w", entry.Name(), err)
 		}
 
-		// Combine base + page template
-		combined := string(baseContent) + "\n" + string(pageContent)
-		tmpl, err := template.New(name).Funcs(templateFuncs()).Parse(combined)
+		// Parse base template first, then add page template
+		// Using Clone() allows page templates to override block definitions
+		baseTmpl, err := template.New("base").Funcs(templateFuncs()).Parse(string(baseContent))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse base template for %s: %w", entry.Name(), err)
+		}
+
+		tmpl, err := baseTmpl.Clone()
+		if err != nil {
+			return nil, fmt.Errorf("failed to clone base template for %s: %w", entry.Name(), err)
+		}
+
+		_, err = tmpl.Parse(string(pageContent))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse template %s: %w", entry.Name(), err)
 		}
