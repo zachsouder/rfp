@@ -1,4 +1,4 @@
-.PHONY: dev run-discovery run-client migrate test build clean
+.PHONY: dev run-discovery run-client migrate test build clean prod-build prod-up prod-down prod-logs
 
 # Load .env if it exists
 ifneq (,$(wildcard .env))
@@ -48,3 +48,21 @@ build:
 clean:
 	rm -rf bin/
 	docker-compose down -v
+
+# Production
+prod-build:
+	docker compose -f docker-compose.prod.yml build
+
+prod-up:
+	docker compose -f docker-compose.prod.yml up -d
+
+prod-down:
+	docker compose -f docker-compose.prod.yml down
+
+prod-logs:
+	docker compose -f docker-compose.prod.yml logs -f
+
+prod-migrate:
+	docker compose -f docker-compose.prod.yml exec -T postgres psql -U $${POSTGRES_USER:-rfp} -d $${POSTGRES_DB:-rfp} < migrations/001_discovery_schema.sql
+	docker compose -f docker-compose.prod.yml exec -T postgres psql -U $${POSTGRES_USER:-rfp} -d $${POSTGRES_DB:-rfp} < migrations/002_client_schema.sql
+	docker compose -f docker-compose.prod.yml exec -T postgres psql -U $${POSTGRES_USER:-rfp} -d $${POSTGRES_DB:-rfp} < migrations/003_password_reset.sql

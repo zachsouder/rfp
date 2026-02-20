@@ -49,6 +49,7 @@ func init() {
 	discoveryCmd.AddCommand(retryFailedCmd)
 	discoveryCmd.AddCommand(recentCmd)
 	discoveryCmd.AddCommand(exportCmd)
+	discoveryCmd.AddCommand(importCmd)
 }
 
 // connectDB loads config and connects to the database.
@@ -618,4 +619,134 @@ func formatLocation(city, state string) string {
 		return city
 	}
 	return state
+}
+
+// Import command
+var importFile string
+var importDryRun bool
+
+var importCmd = &cobra.Command{
+	Use:   "import",
+	Short: "Import RFPs from JSON file",
+	Long:  `Import RFPs from a JSON file (e.g., exported from PHP demo).`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if importFile == "" {
+			return fmt.Errorf("--file is required")
+		}
+
+		// Read and parse JSON file
+		data, err := os.ReadFile(importFile)
+		if err != nil {
+			return fmt.Errorf("failed to read file: %w", err)
+		}
+
+		var rfps []importRFP
+		if err := json.Unmarshal(data, &rfps); err != nil {
+			return fmt.Errorf("failed to parse JSON: %w", err)
+		}
+
+		fmt.Printf("Found %d RFPs to import\n", len(rfps))
+
+		if importDryRun {
+			fmt.Println("\nDry run - no changes will be made")
+			for i, rfp := range rfps {
+				if i >= 5 {
+					fmt.Printf("... and %d more\n", len(rfps)-5)
+					break
+				}
+				fmt.Printf("  - %s (%s, %s)\n", truncate(rfp.Title, 50), rfp.Agency, rfp.State)
+			}
+			return nil
+		}
+
+		ctx := context.Background()
+		database, err := connectDB(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to connect to database: %w", err)
+		}
+		defer database.Close()
+
+		imported := 0
+		skipped := 0
+
+		for _, rfp := range rfps {
+			// Check if URL already exists
+			var exists bool
+			err := database.QueryRow(ctx, `
+				SELECT EXISTS(SELECT 1 FROM discovery.rfps WHERE source_url = $1)
+			`, rfp.SourceURL).Scan(&exists)
+			if err != nil {
+				return fmt.Errorf("failed to check existing RFP: %w", err)
+			}
+
+			if exists {
+				skipped++
+				continue
+			}
+
+			// Parse dates
+			var postedDate, dueDate *time.Time
+			if rfp.PostedDate != "" {
+				if t, err := time.Parse("2006-01-02", rfp.PostedDate); err == nil {
+					postedDate = &t
+				}
+			}
+			if rfp.DueDate != "" {
+				if t, err := time.Parse("2006-01-02", rfp.DueDate); err == nil {
+					dueDate = &t
+				}
+			}
+
+			// Insert RFP
+			_, err = database.Exec(ctx, `
+				INSERT INTO discovery.rfps (
+					title, agency, state, city, source_url, portal,
+					posted_date, due_date, category, venue_type,
+					term_months, estimated_value, incumbent, login_required,
+					discovered_at, is_active
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), true)
+			`,
+				rfp.Title, rfp.Agency, rfp.State, rfp.City, rfp.SourceURL, rfp.Portal,
+				postedDate, dueDate, rfp.Category, rfp.VenueType,
+				rfp.TermMonths, rfp.EstValue, rfp.Incumbent, rfp.IsLoginRequired(),
+			)
+			if err != nil {
+				fmt.Printf("Warning: failed to import '%s': %v\n", truncate(rfp.Title, 40), err)
+				continue
+			}
+
+			imported++
+		}
+
+		fmt.Printf("\nImported: %d\n", imported)
+		fmt.Printf("Skipped (already exists): %d\n", skipped)
+
+		return nil
+	},
+}
+
+type importRFP struct {
+	Title         string   `json:"title"`
+	Agency        string   `json:"agency"`
+	City          string   `json:"city"`
+	State         string   `json:"state"`
+	SourceURL     string   `json:"source_url"`
+	Portal        string   `json:"portal"`
+	PostedDate    string   `json:"posted_date"`
+	DueDate       string   `json:"due_date"`
+	Category      string   `json:"category"`
+	VenueType     string   `json:"venue_type"`
+	TermMonths    *int     `json:"term_months"`
+	EstValue      *float64 `json:"est_value"`
+	Incumbent     string   `json:"incumbent"`
+	LoginRequired int      `json:"login_required"` // SQLite stores as 0/1
+}
+
+func (r importRFP) IsLoginRequired() bool {
+	return r.LoginRequired != 0
+}
+
+func init() {
+	importCmd.Flags().StringVar(&importFile, "file", "", "JSON file to import")
+	importCmd.Flags().BoolVar(&importDryRun, "dry-run", false, "Preview import without making changes")
 }
