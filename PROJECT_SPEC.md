@@ -707,7 +707,7 @@ Coolify Server (Hetzner VPS)
 
    Domain:
    ```
-   http://YOUR_DOMAIN:8080
+   https://rfp.parkingsupply.co:8080
    ```
 
 4. **Create Discovery App** in Coolify
