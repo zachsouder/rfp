@@ -3,6 +3,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -16,6 +18,7 @@ import (
 	"github.com/zachsouder/rfp/shared/config"
 	"github.com/zachsouder/rfp/shared/db"
 	"github.com/zachsouder/rfp/shared/models"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var rootCmd = &cobra.Command{
@@ -33,6 +36,7 @@ func main() {
 
 func init() {
 	rootCmd.AddCommand(discoveryCmd)
+	rootCmd.AddCommand(userCmd)
 }
 
 // discoveryCmd is the parent command for discovery operations
@@ -749,4 +753,85 @@ func (r importRFP) IsLoginRequired() bool {
 func init() {
 	importCmd.Flags().StringVar(&importFile, "file", "", "JSON file to import")
 	importCmd.Flags().BoolVar(&importDryRun, "dry-run", false, "Preview import without making changes")
+}
+
+// User commands
+
+var userCmd = &cobra.Command{
+	Use:   "user",
+	Short: "User management",
+	Long:  `Commands for managing client application users.`,
+}
+
+var userCreateEmail string
+var userCreateFirstName string
+var userCreateLastName string
+var userCreateRole string
+
+var userCreateCmd = &cobra.Command{
+	Use:   "create",
+	Short: "Create a new user",
+	Long:  `Create a new user with a generated temporary password. Use this to bootstrap the first admin account.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if userCreateEmail == "" {
+			return fmt.Errorf("--email is required")
+		}
+		if userCreateFirstName == "" {
+			return fmt.Errorf("--first-name is required")
+		}
+		if userCreateLastName == "" {
+			return fmt.Errorf("--last-name is required")
+		}
+		if userCreateRole != "admin" && userCreateRole != "user" {
+			return fmt.Errorf("--role must be 'admin' or 'user'")
+		}
+
+		ctx := context.Background()
+		database, err := connectDB(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to connect to database: %w", err)
+		}
+		defer database.Close()
+
+		// Generate a temporary password
+		tokenBytes := make([]byte, 32)
+		if _, err := rand.Read(tokenBytes); err != nil {
+			return fmt.Errorf("failed to generate password: %w", err)
+		}
+		tempPassword := base64.URLEncoding.EncodeToString(tokenBytes)[:12]
+
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(tempPassword), 12)
+		if err != nil {
+			return fmt.Errorf("failed to hash password: %w", err)
+		}
+
+		var userID int
+		err = database.QueryRow(ctx, `
+			INSERT INTO client.users (email, password_hash, first_name, last_name, role)
+			VALUES ($1, $2, $3, $4, $5)
+			RETURNING id
+		`, userCreateEmail, string(passwordHash), userCreateFirstName, userCreateLastName, userCreateRole).Scan(&userID)
+		if err != nil {
+			return fmt.Errorf("failed to create user (email may already exist): %w", err)
+		}
+
+		fmt.Println("User created successfully!")
+		fmt.Printf("  ID:       %d\n", userID)
+		fmt.Printf("  Email:    %s\n", userCreateEmail)
+		fmt.Printf("  Name:     %s %s\n", userCreateFirstName, userCreateLastName)
+		fmt.Printf("  Role:     %s\n", userCreateRole)
+		fmt.Printf("  Password: %s\n", tempPassword)
+		fmt.Println()
+		fmt.Println("The user should change their password after first login.")
+
+		return nil
+	},
+}
+
+func init() {
+	userCmd.AddCommand(userCreateCmd)
+	userCreateCmd.Flags().StringVar(&userCreateEmail, "email", "", "User email address")
+	userCreateCmd.Flags().StringVar(&userCreateFirstName, "first-name", "", "First name")
+	userCreateCmd.Flags().StringVar(&userCreateLastName, "last-name", "", "Last name")
+	userCreateCmd.Flags().StringVar(&userCreateRole, "role", "admin", "User role (admin or user)")
 }
